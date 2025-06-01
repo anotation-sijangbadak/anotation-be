@@ -1,0 +1,45 @@
+package com.anotation.anotation_be.auth.entity;
+
+import com.anotation.anotation_be.common.entity.BaseTimeEntity;
+import com.anotation.anotation_be.common.enums.Active;
+import com.anotation.anotation_be.common.enums.Role;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.DynamicInsert;
+
+@Entity
+@Getter
+@ToString
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@DynamicInsert
+public class Users extends BaseTimeEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(nullable = false)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String email;
+
+    @Column(nullable = false)
+    private String password;
+
+    @Column(nullable = false, unique = true)
+    private String nickname;
+
+    @Column(nullable = false)
+    private Long genre;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'USER'")
+    private Role role;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'ENABLED'")
+    private Active active;
+}
