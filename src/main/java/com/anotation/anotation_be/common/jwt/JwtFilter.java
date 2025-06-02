@@ -35,7 +35,6 @@ public class JwtFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        log.warn(request.getRequestURI());
         for (String path : whiteList) {
             if(request.getRequestURI().equals(path) || request.getRequestURI().startsWith(path)) {
                 filterChain.doFilter(request, response);
@@ -43,7 +42,7 @@ public class JwtFilter extends OncePerRequestFilter {
             }
         }
 
-        log.warn("JWT Filter에 돌고 있어요!");
+        log.info("JWT Filter에 돌고 있어요!");
 
         String authHeader = request.getHeader("Authorization");
 
@@ -79,6 +78,15 @@ public class JwtFilter extends OncePerRequestFilter {
             log.warn("역할이 유효하지 않습니다.");
             onError(response, ErrorCode.ROLE_INVALID);
             return;
+        }
+
+        // type 검증
+        if(claims.get("type", String.class).equals("REFRESH")) {
+            if(!request.getRequestURI().equals("/auth/reissue")) {
+                log.warn("Refresh 토큰으로 다른 서비스 접근");
+                onError(response, ErrorCode.TOKEN_INVALID);
+                return;
+            }
         }
 
         // @AuthenticationPrinciple, @PreAuthorize("hasRole('ADMIN')") 같은 로직을 사용하기 위한 로직

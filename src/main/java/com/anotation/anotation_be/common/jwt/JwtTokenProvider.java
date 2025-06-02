@@ -73,9 +73,10 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setSubject(user.getEmail())
                 .claim("role", user.getRole().name())
+                .claim("type", "ACCESS")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(new Date().getTime() + accessTokenExpiration))
-                .signWith(SignatureAlgorithm.HS512, secretKeyBytes)
+                .signWith(SignatureAlgorithm.HS256, secretKeyBytes)
                 .compact();
     }
 
@@ -83,9 +84,10 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setSubject(user.getEmail())
                 .claim("role", user.getRole().name())
+                .claim("type", "REFRESH")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(new Date().getTime() + refreshTokenExpiration))
-                .signWith(SignatureAlgorithm.HS512, secretKeyBytes)
+                .signWith(SignatureAlgorithm.HS256, secretKeyBytes)
                 .compact();
     }
 }

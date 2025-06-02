@@ -7,6 +7,7 @@ import com.anotation.anotation_be.auth.dto.response.UserIdResDto;
 import com.anotation.anotation_be.auth.entity.Users;
 import com.anotation.anotation_be.auth.repo.AuthRepository;
 import com.anotation.anotation_be.common.dto.email.EmailReqDto;
+import com.anotation.anotation_be.common.dto.global.TokenUserInfo;
 import com.anotation.anotation_be.common.enums.ErrorCode;
 import com.anotation.anotation_be.common.enums.Genre;
 import com.anotation.anotation_be.common.exception.BusinessException;
@@ -27,7 +28,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailPublisherService emailPublisherService;
-    private final RedisTemplate<String, String> redisStringTemplate;
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${jwt.refresh-token-expiration}")
     private Long refreshTokenExpiration;
@@ -97,7 +98,11 @@ public class AuthService {
         String refreshToken = jwtTokenProvider.createRefreshToken(user);
 
         // Refresh Token Redis 저장
-        redisStringTemplate.opsForValue().set(REFRESH_TOKEN_KEY + user.getEmail(), refreshToken, refreshTokenExpiration);
+        try {
+            refreshTokenService.saveRefreshToken(user.getEmail(), refreshToken);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "서버 내부 토큰 저장 실패. 강하늘에게 문의하세요.");
+        }
 
         // 응답
         return LoginResponseDto.builder()
@@ -110,6 +115,25 @@ public class AuthService {
 
     public void logout(String email) {
         // Refresh Token 삭제
-        redisStringTemplate.delete(REFRESH_TOKEN_KEY + email);
+        refreshTokenService.deleteRefreshToken(email);
+    }
+
+    public String reissue(TokenUserInfo userInfo) throws BusinessException {
+        // Refresh Token이 유효한지 확인
+        // => Security에서는 Client가 준 Refresh Token의 기간을,
+        //    Auth Service에서는 서버 내부에서 관리하고 있는 Refresh Token의 기간을 검증함
+        try {
+            refreshTokenService.getRefreshToken(userInfo.getEmail());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.NO_TOKEN);
+        }
+
+        // Users 객체 찾기
+        Users user = authRepository.findByEmail(userInfo.getEmail()).orElseThrow(
+                () -> new BusinessException(ErrorCode.USER_NOT_FOUND)
+        );
+
+        // Access Token 발급
+        return jwtTokenProvider.createAccessToken(user);
     }
 }
