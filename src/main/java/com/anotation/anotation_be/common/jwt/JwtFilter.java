@@ -1,6 +1,6 @@
 package com.anotation.anotation_be.common.jwt;
 
-import com.anotation.anotation_be.common.dto.global.ApiResponse;
+import com.anotation.anotation_be.common.dto.global.CommonResponse;
 import com.anotation.anotation_be.common.dto.global.TokenUserInfo;
 import com.anotation.anotation_be.common.enums.ErrorCode;
 import com.anotation.anotation_be.common.enums.Role;
@@ -30,13 +30,14 @@ public class JwtFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
 
     List<String> whiteList = List.of(
-            "/auth/signup", "/auth/login"
+            "/auth/signup", "/auth/login", "/swagger-ui/", "/v3/"
     );
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        log.warn(request.getRequestURI());
         for (String path : whiteList) {
-            if(request.getRequestURI().equals(path)) {
+            if(request.getRequestURI().equals(path) || request.getRequestURI().startsWith(path)) {
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -96,7 +97,7 @@ public class JwtFilter extends OncePerRequestFilter {
         response.setCharacterEncoding("UTF-8");
 
         // 공통 실패 응답 JSON으로 변환
-        String body = objectMapper.writeValueAsString(ApiResponse.fail(errorCode));
+        String body = objectMapper.writeValueAsString(CommonResponse.fail(errorCode));
         response.getWriter().write(body);
     }
 }

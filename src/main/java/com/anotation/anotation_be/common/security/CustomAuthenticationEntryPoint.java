@@ -1,6 +1,6 @@
 package com.anotation.anotation_be.common.security;
 
-import com.anotation.anotation_be.common.dto.global.ApiResponse;
+import com.anotation.anotation_be.common.dto.global.CommonResponse;
 import com.anotation.anotation_be.common.enums.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,7 +30,7 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
         response.setCharacterEncoding("UTF-8");
 
         // 공통 실패 응답 JSON으로 변환
-        String body= objectMapper.writeValueAsString(ApiResponse.fail(errorCode));
+        String body= objectMapper.writeValueAsString(CommonResponse.fail(errorCode));
         response.getWriter().write(body);
     }
 }
