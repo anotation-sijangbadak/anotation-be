@@ -18,10 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @Slf4j
@@ -50,6 +47,14 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody @Valid LoginRequestDto reqDto) throws BusinessException {
         LoginResponseDto resDto = authService.login(reqDto);
         return new ResponseEntity<>(CommonResponse.ok(CommonStatus.SUCCESS, resDto), HttpStatus.OK);
+    }
+
+    @Operation(summary = "로그아웃")
+    @ApiResponse(responseCode = "200")
+    @GetMapping("/logout/{email}")
+    public ResponseEntity<?> logout(@PathVariable String email) throws BusinessException {
+        authService.logout(email);
+        return new ResponseEntity<>(CommonResponse.ok(CommonStatus.SUCCESS), HttpStatus.OK);
     }
 
 }

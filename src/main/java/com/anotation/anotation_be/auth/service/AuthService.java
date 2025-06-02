@@ -14,6 +14,8 @@ import com.anotation.anotation_be.common.jwt.JwtTokenProvider;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,12 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailPublisherService emailPublisherService;
+    private final RedisTemplate<String, String> redisStringTemplate;
+
+    @Value("${jwt.refresh-token-expiration}")
+    private Long refreshTokenExpiration;
+
+    private static final String REFRESH_TOKEN_KEY = "RT:";
 
     @Transactional
     public UserIdResDto signup(SignupReqDto reqDto) throws BusinessException {
@@ -88,6 +96,9 @@ public class AuthService {
         // Refresh Token 발행
         String refreshToken = jwtTokenProvider.createRefreshToken(user);
 
+        // Refresh Token Redis 저장
+        redisStringTemplate.opsForValue().set(REFRESH_TOKEN_KEY + user.getEmail(), refreshToken, refreshTokenExpiration);
+
         // 응답
         return LoginResponseDto.builder()
                 .accessToken(accessToken)
@@ -95,5 +106,10 @@ public class AuthService {
                 .nickname(user.getNickname())
                 .userId(user.getId())
                 .build();
+    }
+
+    public void logout(String email) {
+        // Refresh Token 삭제
+        redisStringTemplate.delete(REFRESH_TOKEN_KEY + email);
     }
 }
