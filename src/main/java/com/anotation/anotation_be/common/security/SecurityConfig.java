@@ -23,6 +23,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // CORS 해제
+                .cors(AbstractHttpConfigurer::disable)
                 // Cross-Site Request Forgery - 사용자가 의도하지 않은 요청을 보내도록 속이는 공격 -> JWT 인증 방식이므로 비활성화
                 .csrf(AbstractHttpConfigurer::disable)
                 // 세션을 사용하지 않으므로 비활성화
@@ -34,7 +36,7 @@ public class SecurityConfig {
                 // 허용 URI 설정
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                 "/auth/login", "/auth/signup"
+                                 "/auth/login", "/auth/signup", "/swagger-ui/**", "/v3/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

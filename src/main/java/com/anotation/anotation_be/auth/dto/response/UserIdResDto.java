@@ -1,5 +1,6 @@
 package com.anotation.anotation_be.auth.dto.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 @Getter
@@ -8,5 +9,6 @@ import lombok.*;
 @NoArgsConstructor
 @ToString
 public class UserIdResDto {
+    @Schema(defaultValue = "2")
     private Long id;
 }
