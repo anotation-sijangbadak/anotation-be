@@ -2,6 +2,7 @@ package com.anotation.anotation_be.auth.service;
 
 import com.anotation.anotation_be.auth.dto.request.LoginRequestDto;
 import com.anotation.anotation_be.auth.dto.request.SignupReqDto;
+import com.anotation.anotation_be.auth.dto.request.UserModifyReqDto;
 import com.anotation.anotation_be.auth.dto.response.LoginResponseDto;
 import com.anotation.anotation_be.auth.dto.response.UserIdResDto;
 import com.anotation.anotation_be.auth.entity.Users;
@@ -135,5 +136,27 @@ public class AuthService {
 
         // Access Token 발급
         return jwtTokenProvider.createAccessToken(user);
+    }
+
+    @Transactional
+    public void modify(TokenUserInfo userInfo, UserModifyReqDto reqDto) {
+        Long genre = null;
+        String nickname = reqDto.getNickname() != null ? reqDto.getNickname() : "";
+
+        // 장르 비트 연산
+        if (reqDto.getGenres() != null && !reqDto.getGenres().isEmpty()) {
+            genre = (long) Genre.fromGenre(reqDto.getGenres());
+        }
+
+        // Users 객체 찾기
+        Users user = authRepository.findByEmail(userInfo.getEmail()).orElseThrow(
+                () -> new BusinessException(ErrorCode.USER_NOT_FOUND)
+        );
+
+        // 수정한 정보 저장 - null이거나 빈 문자열은 저장되지 않음
+        user.setGenre(genre);
+        user.setNickname(nickname);
+
+        authRepository.save(user);
     }
 }

@@ -2,6 +2,7 @@ package com.anotation.anotation_be.auth.controller;
 
 import com.anotation.anotation_be.auth.dto.request.LoginRequestDto;
 import com.anotation.anotation_be.auth.dto.request.SignupReqDto;
+import com.anotation.anotation_be.auth.dto.request.UserModifyReqDto;
 import com.anotation.anotation_be.auth.dto.response.LoginResponseDto;
 import com.anotation.anotation_be.auth.dto.response.TokenReissueResDto;
 import com.anotation.anotation_be.auth.dto.response.UserIdResDto;
@@ -62,6 +63,14 @@ public class AuthController {
     public ResponseEntity<?> reissue(@AuthenticationPrincipal TokenUserInfo userInfo) throws BusinessException {
         String token = authService.reissue(userInfo);
         return new ResponseEntity<>(CommonResponse.ok(CommonStatus.CREATED, new TokenReissueResDto(token)), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "회원정보 수정", description = "nickname과 genre를 수정할 수 있습니다.")
+    @ApiResponse(responseCode = "200")
+    @PutMapping("/modify")
+    public ResponseEntity<?> modify(@AuthenticationPrincipal TokenUserInfo userInfo, @RequestBody UserModifyReqDto reqDto) throws BusinessException {
+        authService.modify(userInfo, reqDto);
+        return new ResponseEntity<>(CommonResponse.ok(CommonStatus.UPDATED), HttpStatus.OK);
     }
 
 }

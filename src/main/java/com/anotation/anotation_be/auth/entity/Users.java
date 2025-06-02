@@ -42,4 +42,17 @@ public class Users extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @ColumnDefault("'ENABLED'")
     private Active active;
+
+
+    public void setGenre(Long genre) {
+        if (genre != null && genre > 0) {
+            this.genre = genre;
+        }
+    }
+
+    public void setNickname(String nickname) {
+        if (nickname != null && !nickname.isBlank()) {
+            this.nickname = nickname;
+        }
+    }
 }
