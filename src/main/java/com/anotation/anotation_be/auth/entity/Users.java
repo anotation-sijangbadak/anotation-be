@@ -3,10 +3,13 @@ package com.anotation.anotation_be.auth.entity;
 import com.anotation.anotation_be.common.entity.BaseTimeEntity;
 import com.anotation.anotation_be.common.enums.Active;
 import com.anotation.anotation_be.common.enums.Role;
+import com.anotation.anotation_be.emotion.entity.Traces;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.DynamicInsert;
+
+import java.util.List;
 
 @Entity
 @Getter
@@ -15,6 +18,7 @@ import org.hibernate.annotations.DynamicInsert;
 @AllArgsConstructor
 @Builder
 @DynamicInsert
+@Table(name = "tbl_users")
 public class Users extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -42,6 +46,9 @@ public class Users extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @ColumnDefault("'ENABLED'")
     private Active active;
+
+    @OneToMany(orphanRemoval = true)
+    private List<Traces> traces;
 
 
     public void setGenre(Long genre) {
