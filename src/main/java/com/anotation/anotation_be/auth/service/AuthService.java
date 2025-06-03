@@ -2,11 +2,13 @@ package com.anotation.anotation_be.auth.service;
 
 import com.anotation.anotation_be.auth.dto.request.LoginRequestDto;
 import com.anotation.anotation_be.auth.dto.request.SignupReqDto;
+import com.anotation.anotation_be.auth.dto.request.UserModifyReqDto;
 import com.anotation.anotation_be.auth.dto.response.LoginResponseDto;
 import com.anotation.anotation_be.auth.dto.response.UserIdResDto;
 import com.anotation.anotation_be.auth.entity.Users;
 import com.anotation.anotation_be.auth.repo.AuthRepository;
 import com.anotation.anotation_be.common.dto.email.EmailReqDto;
+import com.anotation.anotation_be.common.dto.global.TokenUserInfo;
 import com.anotation.anotation_be.common.enums.ErrorCode;
 import com.anotation.anotation_be.common.enums.Genre;
 import com.anotation.anotation_be.common.exception.BusinessException;
@@ -14,6 +16,8 @@ import com.anotation.anotation_be.common.jwt.JwtTokenProvider;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +29,12 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailPublisherService emailPublisherService;
+    private final RefreshTokenService refreshTokenService;
+
+    @Value("${jwt.refresh-token-expiration}")
+    private Long refreshTokenExpiration;
+
+    private static final String REFRESH_TOKEN_KEY = "RT:";
 
     @Transactional
     public UserIdResDto signup(SignupReqDto reqDto) throws BusinessException {
@@ -88,6 +98,13 @@ public class AuthService {
         // Refresh Token 발행
         String refreshToken = jwtTokenProvider.createRefreshToken(user);
 
+        // Refresh Token Redis 저장
+        try {
+            refreshTokenService.saveRefreshToken(user.getEmail(), refreshToken);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "서버 내부 토큰 저장 실패. 강하늘에게 문의하세요.");
+        }
+
         // 응답
         return LoginResponseDto.builder()
                 .accessToken(accessToken)
@@ -95,5 +112,51 @@ public class AuthService {
                 .nickname(user.getNickname())
                 .userId(user.getId())
                 .build();
+    }
+
+    public void logout(String email) {
+        // Refresh Token 삭제
+        refreshTokenService.deleteRefreshToken(email);
+    }
+
+    public String reissue(TokenUserInfo userInfo) throws BusinessException {
+        // Refresh Token이 유효한지 확인
+        // => Security에서는 Client가 준 Refresh Token의 기간을,
+        //    Auth Service에서는 서버 내부에서 관리하고 있는 Refresh Token의 기간을 검증함
+        try {
+            refreshTokenService.getRefreshToken(userInfo.getEmail());
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.NO_TOKEN);
+        }
+
+        // Users 객체 찾기
+        Users user = authRepository.findByEmail(userInfo.getEmail()).orElseThrow(
+                () -> new BusinessException(ErrorCode.USER_NOT_FOUND)
+        );
+
+        // Access Token 발급
+        return jwtTokenProvider.createAccessToken(user);
+    }
+
+    @Transactional
+    public void modify(TokenUserInfo userInfo, UserModifyReqDto reqDto) {
+        Long genre = null;
+        String nickname = reqDto.getNickname() != null ? reqDto.getNickname() : "";
+
+        // 장르 비트 연산
+        if (reqDto.getGenres() != null && !reqDto.getGenres().isEmpty()) {
+            genre = (long) Genre.fromGenre(reqDto.getGenres());
+        }
+
+        // Users 객체 찾기
+        Users user = authRepository.findByEmail(userInfo.getEmail()).orElseThrow(
+                () -> new BusinessException(ErrorCode.USER_NOT_FOUND)
+        );
+
+        // 수정한 정보 저장 - null이거나 빈 문자열은 저장되지 않음
+        user.setGenre(genre);
+        user.setNickname(nickname);
+
+        authRepository.save(user);
     }
 }

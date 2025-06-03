@@ -23,21 +23,21 @@ public class RefreshTokenService {
     /**
      * Redis에 Refresh 토큰을 저장하는 메서드
      *
-     * @param userId Users의 id 값을 String 값으로 변환 후 전달해주세요.
+     * @param email Users의 id 값을 String 값으로 변환 후 전달해주세요.
      */
-    public void saveRefreshToken(String userId, String refreshToken) {
-        String key = PREFIX + userId;
+    public void saveRefreshToken(String email, String refreshToken) {
+        String key = PREFIX + email;
         redisTemplate.opsForValue().set(key, refreshToken, Duration.ofMillis(expiration));
     }
 
     /**
      * Redis에 Refresh 토큰을 조회하는 메서드
      *
-     * @param userId Users의 id 값을 String 값으로 변환 후 전달해주세요.
+     * @param email Users의 id 값을 String 값으로 변환 후 전달해주세요.
      * @return 조회 결과가 없을 경우 NO_TOKEN 예외 발생
      */
-    public String getRefreshToken(String userId) {
-        String key = PREFIX + userId;
+    public String getRefreshToken(String email) {
+        String key = PREFIX + email;
         String value = redisTemplate.opsForValue().get(key);
         if(value == null) {
             throw new BusinessException(ErrorCode.NO_TOKEN);
