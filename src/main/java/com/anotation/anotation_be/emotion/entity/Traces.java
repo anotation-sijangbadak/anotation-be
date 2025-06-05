@@ -28,6 +28,10 @@ public class Traces extends BaseTimeEntity {
     @Column(nullable = false)
     private String prompt;
 
-    @OneToMany(cascade = CascadeType.PERSIST, orphanRemoval = true)
+    @OneToMany(mappedBy = "trace", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Emotions> emotions = new ArrayList<>();
+
+    public void addEmotion(Emotions emotion) {
+        emotions.add(emotion);
+    }
 }

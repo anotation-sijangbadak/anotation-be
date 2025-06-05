@@ -76,7 +76,7 @@ public class JwtFilter extends OncePerRequestFilter {
             role = Role.from(claims.get("role", String.class));
         } catch (RuntimeException e) {
             log.warn("역할이 유효하지 않습니다.");
-            onError(response, ErrorCode.ROLE_INVALID);
+            onError(response, ErrorCode.ROLE_INVALID, "역할이 유효하지 않습니다. 재로그인해주세요");
             return;
         }
 
@@ -84,7 +84,7 @@ public class JwtFilter extends OncePerRequestFilter {
         if(claims.get("type", String.class).equals("REFRESH")) {
             if(!request.getRequestURI().equals("/auth/reissue")) {
                 log.warn("Refresh 토큰으로 다른 서비스 접근");
-                onError(response, ErrorCode.TOKEN_INVALID);
+                onError(response, ErrorCode.TOKEN_INVALID, "Refresh 토큰을 사용한 잘못된 접근");
                 return;
             }
         }
@@ -106,6 +106,16 @@ public class JwtFilter extends OncePerRequestFilter {
 
         // 공통 실패 응답 JSON으로 변환
         String body = objectMapper.writeValueAsString(CommonResponse.fail(errorCode));
+        response.getWriter().write(body);
+    }
+
+    private void onError(HttpServletResponse response, ErrorCode errorCode, String message) throws IOException {
+        response.setStatus(errorCode.getStatus());
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+
+        // 공통 실패 응답 JSON으로 변환
+        String body = objectMapper.writeValueAsString(CommonResponse.fail(errorCode, message));
         response.getWriter().write(body);
     }
 }

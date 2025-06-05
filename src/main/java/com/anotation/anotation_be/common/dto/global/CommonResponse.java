@@ -50,6 +50,14 @@ public class CommonResponse<T> {
                 .build();
     }
 
+    public static <T> CommonResponse<T> fail(ErrorCode errorCode, String message) {
+        return CommonResponse.<T>builder()
+                .success(false)
+                .message(message)
+                .code(errorCode.getCode())
+                .build();
+    }
+
     public static <T> CommonResponse<T> fail(String code, String message) {
         return CommonResponse.<T>builder()
                 .success(false)
