@@ -1,11 +1,11 @@
-package com.anotation.anotation_be.emotion.dto.response;
+package com.anotation.anotation_be.common.dto.emotion;
 
 import lombok.Data;
 
 import java.util.List;
 
 @Data
-public class EmotionPredictResDto {
+public class EmotionPredictDto {
     private List<Result> result;
 
     @Data

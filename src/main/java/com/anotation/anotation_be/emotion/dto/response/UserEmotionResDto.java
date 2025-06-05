@@ -16,5 +16,4 @@ public class UserEmotionResDto {
     private String translatedText;
 
     private List<String> emotionList;
-    // TODO: track 도 줘야 겠네 여기
 }

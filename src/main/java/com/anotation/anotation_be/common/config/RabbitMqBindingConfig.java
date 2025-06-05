@@ -27,4 +27,22 @@ public class RabbitMqBindingConfig {
                 .to(userExchange())
                 .with(MQConstants.SIGNUP_ROUTING_KEY);
     }
+
+    @Bean
+    public TopicExchange emotionExchange() {
+        return new TopicExchange(MQConstants.EMOTION_SEND_EXCHANGE);
+    }
+
+    @Bean
+    public Queue emotionQueue() {
+        return new Queue(MQConstants.EMOTION_SEND_QUEUE);
+    }
+
+    @Bean
+    public Binding recommendBinding() {
+        return BindingBuilder
+                .bind(emotionQueue())
+                .to(emotionExchange())
+                .with(MQConstants.EMOTION_SEND_ROUTING_KEY);
+    }
 }
