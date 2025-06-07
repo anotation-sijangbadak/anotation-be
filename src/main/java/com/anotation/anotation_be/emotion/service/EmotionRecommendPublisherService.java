@@ -2,6 +2,7 @@ package com.anotation.anotation_be.emotion.service;
 
 import com.anotation.anotation_be.common.constants.MQConstants;
 import com.anotation.anotation_be.common.dto.emotion.EmotionPredictDto;
+import com.anotation.anotation_be.common.dto.emotion.GPTEmotionReqDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -14,7 +15,7 @@ public class EmotionRecommendPublisherService {
 
     private final RabbitTemplate rabbitTemplate;
 
-    public void sendEmotion(EmotionPredictDto reqDto) {
+    public void sendEmotion(GPTEmotionReqDto reqDto) {
         try {
             rabbitTemplate.convertAndSend(MQConstants.EMOTION_SEND_EXCHANGE, MQConstants.EMOTION_SEND_ROUTING_KEY, reqDto);
 

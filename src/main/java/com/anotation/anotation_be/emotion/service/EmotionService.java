@@ -5,9 +5,11 @@ import com.anotation.anotation_be.auth.repo.AuthRepository;
 import com.anotation.anotation_be.auth.service.AuthService;
 import com.anotation.anotation_be.common.constants.URIConstants;
 import com.anotation.anotation_be.common.dto.emotion.EmotionPredictDto;
+import com.anotation.anotation_be.common.dto.emotion.GPTEmotionReqDto;
 import com.anotation.anotation_be.common.dto.global.TokenUserInfo;
 import com.anotation.anotation_be.common.enums.EmotionEnum;
 import com.anotation.anotation_be.common.enums.ErrorCode;
+import com.anotation.anotation_be.common.enums.Genre;
 import com.anotation.anotation_be.common.exception.BusinessException;
 import com.anotation.anotation_be.emotion.dto.request.EmotionPredictReqDto;
 import com.anotation.anotation_be.emotion.dto.request.TranslateReqDto;
@@ -87,8 +89,15 @@ public class EmotionService {
         // 기록 객체 DB 저장
         traceRepository.save(trace);
 
+        GPTEmotionReqDto sendDto = GPTEmotionReqDto.builder()
+                .email(user.getEmail())
+                .userInput(translated)
+                .emotionList(emotionList.stream().map(e -> e.name().toLowerCase()).collect(Collectors.toList()))
+                .genreList(Genre.toGenre(user.getGenre().intValue()).stream().map(e -> e.name().toLowerCase()).collect(Collectors.toList()))
+                .build();
+
         // 감정 정보를 담아 메시징 큐에 쏘기
-        emotionRecommendPublisherService.sendEmotion(result);
+        emotionRecommendPublisherService.sendEmotion(sendDto);
 
         return UserEmotionResDto.builder()
                 .translatedText(translated)
