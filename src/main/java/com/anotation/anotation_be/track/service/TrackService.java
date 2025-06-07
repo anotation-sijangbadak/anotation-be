@@ -64,13 +64,16 @@ public class TrackService {
         // Redis에 저장하기
         for (int i = 0; i < recommendTracks.size(); i++) {
             // SIMPLE:TRACK:hwaha0824@gmail.com:INDEX:1
-            log.info("title: {}, artist: {}", recommendTracks.get(i).getTitle(), recommendTracks.get(i).getArtist());
             redisSimpleTrackTemplate.opsForValue().set("SIMPLE:TRACK:" + reqDto.getEmail() + ":INDEX:" + i, recommendTracks.get(i), Duration.ofMinutes(10L));
+            log.info("title: {}, artist: {}", recommendTracks.get(i).getTitle(), recommendTracks.get(i).getArtist());
         }
 
         // 음악 정보 2개씩 검증 및 저장 비동기 처리
-        for (int i = 0; i < 3; i++) { // TODO: 이거 Constants로 관리
-            rabbitTemplate.convertAndSend(MQConstants.EMOTION_SEND_EXCHANGE, MQConstants.EMOTION_CACHE_TRACK_KEY, new RedisTrackIndexDto(reqDto.getEmail(), i));
+        Set<String> simpleTrackKeys = redisSimpleTrackTemplate.keys("SIMPLE:TRACK:" + reqDto.getEmail() + ":INDEX:*");
+        if (!simpleTrackKeys.isEmpty()) {
+            for (int i = 0; i < 3; i++) {
+                rabbitTemplate.convertAndSend(MQConstants.EMOTION_SEND_EXCHANGE, MQConstants.EMOTION_CACHE_TRACK_KEY, new RedisTrackIndexDto(reqDto.getEmail(), i));
+            }
         }
 
         // 테스트를 위한 return 문
@@ -129,6 +132,9 @@ public class TrackService {
         // 장르 리스트 문자열화
         String genreStr = getGenreStr(reqDto);
 
+        // 장르 프롬프트
+        String genrePrompt = ""; // 이거 나중에 장르별로 추가해야 할듯.. 슈발
+
         String prompt = """
                 [시스템]
                 - 당신은 감정에 민감한 음악 큐레이터입니다.
@@ -141,14 +147,17 @@ public class TrackService {
                 [지침]
                 - 파악된 감정과 장르를 기준으로, 감정 해소나 증폭을 시도하지 말고 감정 자체와 밀접한 음악을 추천하세요.
                 - 감정 우선순위에 따라, 1순위 감정과 가장 관련 깊은 곡을 우선적으로 추천하고, 2순위, 3순위 감정과도 연관성을 고려해 보완하세요.
-                - 추천하는 곡은 최근 %d년 이내에 발매된, **한국 시장**에 등록된 음악 중에서 유명한 곡만 나오지 않게 선택하세요.
+                - 추천하는 곡은 최근 %d년 이내에 발매된, **한국 시장**에 등록된 음악 중에서 너무 유명한 곡이 나오지 않게 선택하세요.
                 - 추천 곡 수는 **10곡 이상 15곡 이하**로 제한하세요.
+                - %s
                 
                 [포맷]
                 - 각 곡을 추천한 이유를 곡의 가사, 멜로디, 아티스트의 특성 등을 활용하여 `reason`에 반드시 명시하세요.
                 - 결과는 반드시 **JSON 배열** 형태로, 각 항목은 `title`(노래 제목)과 `artist`(아티스트명), `reason`(선정 이유)만 포함하세요.
                   예시: [{"title": "밤편지", "artist": "아이유", "reason": "아이유의 특유의 음색이 제시한 감정과 잘 부합함"}, {"title": "사건의 지평선", "artist": "윤하", "reason": "멜로디의 진행과 내부에 사용된 악기가 제시된 감정과 잘 부합함" }]
                 - 추가 텍스트, 설명, 주석 없이 결과 배열만 출력하세요.
+                - ``` 형태로 응답을 감싸지 마세요.
+                - ** 같은 강조 표시를 하지 마세요.
                 
                 [검증 조건]
                 - **존재하지 않는 노래 제목이나 허구의 아티스트명**은 절대 생성하지 마세요.
@@ -157,9 +166,16 @@ public class TrackService {
                 - 당신이 존재 여부에 확신이 90퍼센트 이상일때만 추천하세요.
                 - **곡명과 아티스트명을 변형하거나 번역하지 말고**, 원래의 공식 이름(한글 제목 포함)을 그대로 사용하세요.
                 - **한국 정식 음원 서비스(스포티파이)에서 확인 가능한 곡만 추천**하세요.
-                """.formatted(reqDto.getUserInput(), emotionStr, genreStr, yearDuration);
+                """.formatted(reqDto.getUserInput(), emotionStr, genreStr, yearDuration, genrePrompt);
 
         String escapedPrompt = prompt.replace("\"", "\\\"").replace("\n", "\\n");
+        /*
+        temperature : 창의성(랜덤성) 정도
+        top_p : 확률 누적 필터링 컷오프
+        frequency_penalty : 같은 단어 반복 억제
+        presence_penalty: 이전 단어 재사용 억제
+        n : 생성할 답변 개수
+         */
         return """
                 {
                   "model": "gpt-4.1",
@@ -169,10 +185,10 @@ public class TrackService {
                                 "content": "%s"
                               }
                             ],
-                  "temperature": 0.2,
-                  "top_p": 0.5,
-                  "frequency_penalty": 0,
-                  "presence_penalty": 0,
+                  "temperature": 0.4,
+                  "top_p": 0.85,
+                  "frequency_penalty": 0.2,
+                  "presence_penalty": 0.2,
                   "n": 1
                 }
                 """.formatted(escapedPrompt);
@@ -238,23 +254,25 @@ public class TrackService {
         redisSimpleTrackTemplate.delete(key);
         log.info("트랙 정보 가져오기 성공 : {}", trackDto); // TODO 여기 구조 조금 이상한데 좀 제대로 바꾸자
 
+        TrackInfoDto trackInfoDto;
         // spotify api 호출
-        String resultTracks;
         if (trackDto != null) {
-            resultTracks = getTracksQueryFromSpotify(trackDto, spotifyAccessToken);
-            if(resultTracks == null){
-                // TODO: 여기에 다시 요청을 보내는 로직을 작성해주세요
-                return;
+            String resultTracks = getTracksQueryFromSpotify(trackDto, spotifyAccessToken);
+
+            // TrackInfoDto로 변환
+            trackInfoDto = getTrackInfoDto(reqDto, resultTracks, false);
+            if (trackInfoDto == null) {
+                log.error("트랙 정보를 변환하는 데 실패했습니다.");
+                resultTracks = getTracksAlternativeQueryFromSpotify(trackDto, spotifyAccessToken);
+                trackInfoDto = getTrackInfoDto(reqDto, resultTracks, true);
             }
         } else {
             log.error("트랙 정보가 없습니다.");
             return;
         }
 
-        // TrackInfoDto로 변환
-        TrackInfoDto trackInfoDto = getTrackInfoDto(reqDto, resultTracks);
-        if (trackInfoDto == null) {
-            log.error("트랙 정보를 변환하는 데 실패했습니다.");
+        if(trackInfoDto == null) {
+            log.error("이놈 독하네요 GG");
             return;
         }
 
@@ -264,9 +282,38 @@ public class TrackService {
         redisTrackInfoTemplate.opsForValue().set("TRACK:INFO:" + reqDto.getEmail() + ":INDEX:" + randomIndex, trackInfoDto, Duration.ofMinutes(10));
     }
 
-    private TrackInfoDto getTrackInfoDto(RedisTrackIndexDto reqDto, String resultTracks) {
-        // TODO try catch 처리 똑바로 해놓기
+    private String getTracksAlternativeQueryFromSpotify(SimpleTrackDto trackDto, String spotifyAccessToken) {
+        String seachUri = UriComponentsBuilder.fromUriString("https://api.spotify.com/v1/search")
+                .queryParam(
+                        "q",
+                        "artist:" + trackDto.getArtist() + " " + trackDto.getTitle())
+                .queryParam("type", "track")
+                .queryParam("market", "KR")
+                .queryParam("limit", "10")
+                .build()
+                .toUriString();
+        log.info("대안 URI 변환 성공 : {}", seachUri);
 
+        String searchResult;
+        try {
+            searchResult = restClient.get()
+                    .uri(seachUri)
+                    .header("Authorization", "Bearer " + spotifyAccessToken)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(String.class);
+
+        } catch (Exception e) {
+            log.warn("아 ㅋㅋ 좀 이따 보내라고 ㅋㅋ");
+            return null;
+        }
+
+        log.info("대안 결과 쿼리: {}", searchResult);
+        return searchResult;
+    }
+
+    private TrackInfoDto getTrackInfoDto(RedisTrackIndexDto reqDto, String resultTracks, boolean isRandom) {
+        // TODO try catch 처리 똑바로 해놓기
         JsonNode root;
         try {
             root = objectMapper.readTree(resultTracks);
@@ -278,11 +325,17 @@ public class TrackService {
         if (items.isNull() || items.isEmpty()) {
             log.warn("아무 결과도 응답받지 못했습니다.");
             // ai가 거짓말 친거니까 다시 보내자
-            rabbitTemplate.convertAndSend(MQConstants.EMOTION_SEND_EXCHANGE, MQConstants.EMOTION_CACHE_TRACK_KEY, new RedisTrackIndexDto(reqDto.getEmail(), reqDto.getIndex()));
+//            rabbitTemplate.convertAndSend(MQConstants.EMOTION_SEND_EXCHANGE, MQConstants.EMOTION_CACHE_TRACK_FAKE_KEY, new RedisTrackIndexDto(reqDto.getEmail(), reqDto.getIndex()));
             return null;
         }
 
-        JsonNode firstItem = items.get(0);
+        JsonNode firstItem;
+        if(isRandom) {
+            int randomNum = (int) Math.floor(Math.random() * items.size());
+            firstItem = items.get(randomNum);
+        } else {
+            firstItem = items.get(0);
+        }
 
         String spotifyId = firstItem.path("id").asText();
         String title = firstItem.path("name").asText();
@@ -373,6 +426,12 @@ public class TrackService {
     public TrackInfoDto getTrack(TokenUserInfo userInfo) {
         Set<String> keys = redisTrackInfoTemplate.keys("TRACK:INFO:" + userInfo.getEmail() + ":INDEX:*");
         if (keys.isEmpty()) {
+            Set<String> simpleTrackKeys = redisSimpleTrackTemplate.keys("SIMPLE:TRACK:" + userInfo.getEmail() + ":INDEX:*");
+            if (!simpleTrackKeys.isEmpty()) {
+                rabbitTemplate.convertAndSend(MQConstants.EMOTION_SEND_EXCHANGE, MQConstants.EMOTION_CACHE_TRACK_KEY, new RedisTrackIndexDto(userInfo.getEmail(), 0));
+                return TrackInfoDto.builder().index(-1).build();
+            }
+
             return null;
         }
 
@@ -384,7 +443,12 @@ public class TrackService {
         redisTrackInfoTemplate.delete(key);
 
         // 다음으로 계속
-        rabbitTemplate.convertAndSend(MQConstants.EMOTION_SEND_EXCHANGE, MQConstants.EMOTION_CACHE_TRACK_KEY, new RedisTrackIndexDto(userInfo.getEmail(), 0));
+        Set<String> simpleTrackKeys = redisSimpleTrackTemplate.keys("SIMPLE:TRACK:" + userInfo.getEmail() + ":INDEX:*");
+        if (!simpleTrackKeys.isEmpty()) {
+            for (int i = 0; i < 3; i++) {
+                rabbitTemplate.convertAndSend(MQConstants.EMOTION_SEND_EXCHANGE, MQConstants.EMOTION_CACHE_TRACK_KEY, new RedisTrackIndexDto(userInfo.getEmail(), i));
+            }
+        }
 
         return resDto;
     }

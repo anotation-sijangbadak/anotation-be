@@ -9,6 +9,7 @@ public class MQConstants {
     public static final String EMOTION_SEND_QUEUE = "track.recommend.queue";
     public static final String EMOTION_SEND_ROUTING_KEY = "recommend.emotion.send";
     public static final String EMOTION_CACHE_TRACK_KEY = "recommend.track.cache";
+    public static final String EMOTION_CACHE_TRACK_FAKE_KEY = "recommend.track.fake.cache";
 
 
     private MQConstants() {
