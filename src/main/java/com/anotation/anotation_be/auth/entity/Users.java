@@ -47,7 +47,7 @@ public class Users extends BaseTimeEntity {
     @ColumnDefault("'ENABLED'")
     private Active active;
 
-    @OneToMany(orphanRemoval = true)
+    @OneToMany(mappedBy = "user", orphanRemoval = true)
     private List<Traces> traces;
 
 

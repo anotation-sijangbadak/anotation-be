@@ -1,5 +1,7 @@
 package com.anotation.anotation_be.common.config;
 
+import com.anotation.anotation_be.track.dto.SimpleTrackDto;
+import com.anotation.anotation_be.track.dto.TrackInfoDto;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -27,6 +29,36 @@ public class RedisConfig {
 
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(new StringRedisSerializer());
+
+        return template;
+    }
+
+    /**
+     * 객체 타입을 저장하기 위한 RedisTemplate
+     * Value 직렬화 - GenericJackson2JsonRedisSerializer
+     */
+    @Bean
+    public RedisTemplate<String, SimpleTrackDto> redisSimpleTrackTemplate(RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<String, SimpleTrackDto> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
+
+        return template;
+    }
+
+    /**
+     * 객체 타입을 저장하기 위한 RedisTemplate
+     * Value 직렬화 - GenericJackson2JsonRedisSerializer
+     */
+    @Bean
+    public RedisTemplate<String, TrackInfoDto> redisTrackInfoTemplate(RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<String, TrackInfoDto> template = new RedisTemplate<>();
+        template.setConnectionFactory(redisConnectionFactory);
+
+        template.setKeySerializer(new StringRedisSerializer());
+        template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
 
         return template;
     }

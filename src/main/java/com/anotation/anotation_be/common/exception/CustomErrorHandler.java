@@ -18,7 +18,8 @@ public class CustomErrorHandler {
     public ResponseEntity<?> handleBusinessException(final BusinessException e) {
         ErrorCode errorCode = e.getErrorCode();
         log.warn(errorCode.getMessage());
-        return new ResponseEntity<>(CommonResponse.fail(errorCode), HttpStatus.valueOf(errorCode.getStatus()));
+        log.warn(e.getMessage());
+        return new ResponseEntity<>(CommonResponse.fail(errorCode, e.getMessage()), HttpStatus.valueOf(errorCode.getStatus()));
     }
 
     @ExceptionHandler(IOException.class)

@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 public class EmailPublisherService {
 
     private final RabbitTemplate rabbitTemplate;
-    private final ObjectMapper objectMapper;
 
     public void sendEmail(EmailReqDto reqDto) {
         try {
