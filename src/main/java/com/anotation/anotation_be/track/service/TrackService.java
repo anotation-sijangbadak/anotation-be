@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -76,7 +77,7 @@ public class TrackService {
      * @param reqDto email, userInput, emotionList, genreList
      * @return List{title, artist, reason}
      */
-    public List<SimpleTrackDto> recommendMusicCaching(GPTEmotionReqDto reqDto) throws BusinessException {
+    public List<SimpleTrackDto> recommendMusicCaching(GPTEmotionReqDto reqDto) throws BusinessException, IllegalArgumentException, AmqpException {
         // TODO: 장르 리스트, 감정 리스트는 Enum List로 받아야함. -> Track 저장 위함.
 
         String requestBody = getPrompt(reqDto); // 프롬프트 생성
@@ -103,8 +104,8 @@ public class TrackService {
         if (!simpleTrackKeys.isEmpty()) {
             for (int i = 0; i < COUNT_PER_MQ; i++) {
                 rabbitTemplate.convertAndSend(
-                        MQConstants.EMOTION_SEND_EXCHANGE,
-                        MQConstants.EMOTION_CACHE_TRACK_KEY,
+                        MQConstants.TRACK_EXCHANGE,
+                        MQConstants.TRACK_CACHING_KEY,
                         new RedisTrackIndexDto(reqDto.getEmail(), i)
                 );
             }
@@ -178,8 +179,9 @@ public class TrackService {
      * GPT에게 생성한 프롬프트로 음악 추천 요청 전달
      * @param requestBody 요청 바디
      * @return 응답 바디 (String)
+     * @exception BusinessException GPT 응답 오류
      */
-    private String getResponseByGPT(String requestBody) {
+    private String getResponseByGPT(String requestBody) throws BusinessException {
         String response;
         try {
             response = restClient.post()
@@ -191,7 +193,6 @@ public class TrackService {
                     .retrieve()
                     .body(String.class);
         } catch (Exception e) {
-            log.error("GPT API에서 응답을 받는 도중 오류가 발생했습니다.");
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "GPT API에서 응답을 받는 도중 오류가 발생했습니다.");
         }
         return response;
@@ -201,8 +202,9 @@ public class TrackService {
      * GPT 응답 데이터 DTO 변환
      * @param response GPT 응답 바디(String)
      * @return List {title, artist, reason}
+     * @exception BusinessException JSON 파싱 오류
      */
-    private List<SimpleTrackDto> getSimpleTrackList(String response) {
+    private List<SimpleTrackDto> getSimpleTrackList(String response) throws BusinessException {
         List<SimpleTrackDto> recommendTracks;
         try {
             // response를 JsonNode에 올리기
@@ -221,12 +223,9 @@ public class TrackService {
             recommendTracks = objectMapper.readValue(generatedText, new TypeReference<>() {
             });
         } catch (JsonProcessingException e) {
-            log.error("GPT 응답 바디 JSON 파싱 과정에서 문제가 발생했습니다.");
             throw new BusinessException(ErrorCode.INTERNAL_ERROR, "GPT 응답 바디 JSON 파싱 과정에서 문제가 발생했습니다.");
-        } catch (BusinessException e) {
-            log.error(e.getMessage());
-            throw e;
         }
+
         return recommendTracks;
     }
     //endregion
@@ -242,12 +241,13 @@ public class TrackService {
      * </pre>
      * @param reqDto title, artist, reason
      */
-    public void recommendTrackInfoCaching(RedisTrackIndexDto reqDto) {
+    public void recommendTrackInfoCaching(RedisTrackIndexDto reqDto) throws BusinessException, Exception {
         // index 값에 따라 시간 지연 발생시키기 (Too many request 방지)
         if (reqDto.getIndex() > 0) {
             try {
                 Thread.sleep(SLEEP_MILLI * reqDto.getIndex());
             } catch (InterruptedException e) {
+                // Thread.sleep()에 실패하더라도 로직 진행
                 log.error("Index에 따른 시간 지연 과정에서 문제가 발생하였습니다.");
             }
         }
@@ -269,10 +269,6 @@ public class TrackService {
         } else { // Token이 없다면
             log.info("토큰 재발급을 시작합니다.");
             spotifyAccessToken = getSpotifyAccessToken();
-            if(spotifyAccessToken == null){
-                log.warn("토큰을 발급받지 못했습니다. 잠시 후 다시 시도해주세요.");
-                return;
-            }
         }
 
         String key = remainKeys.iterator().next(); // 키 하나 꺼내기
@@ -300,7 +296,7 @@ public class TrackService {
 
         if (trackInfoDto == null) {
             log.error("대체 쿼리 요청이 실패하였습니다. 진행을 종료합니다.");
-            return;
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "존재하는 트랙이 없습니다.");
         }
         // -------------------------------------------------------------------------------------
 
@@ -316,7 +312,7 @@ public class TrackService {
      * Spotify API에 접근하기 위한 Access Token을 발급받는 로직
      * @return Access Token
      */
-    private String getSpotifyAccessToken() {
+    private String getSpotifyAccessToken() throws BusinessException {
         SpotifyAccessTokenDto response;
         try {
             // 요청 바디 생성
@@ -339,7 +335,7 @@ public class TrackService {
                     .body(SpotifyAccessTokenDto.class);
         } catch (Exception e) {
             log.error("Spotify API로 부터 Access Token을 전달받는 과정에서 문제가 발생했습니다.");
-            return null;
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR,"토큰을 발급받지 못했습니다. 잠시 후 다시 시도해주세요.");
         }
 
         if (response != null) {
@@ -350,7 +346,7 @@ public class TrackService {
             return response.getAccessToken();
         } else {
             log.error("요청은 정상적으로 처리되었으나, 응답으로 null이 수신됨.");
-            return null;
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR,"토큰을 발급받지 못했습니다. 잠시 후 다시 시도해주세요.");
         }
     }
 
@@ -435,18 +431,23 @@ public class TrackService {
     //endregion
 
     public TrackInfoDto getTrack(TokenUserInfo userInfo) {
+        // 전달할 Track 정보가 있는지 확인
         Set<String> keys = redisTrackInfoTemplate.keys(REDIS_TRACK_INFO + userInfo.getEmail() + REDIS_INDEX + "*");
         if (keys.isEmpty()) {
             Set<String> simpleTrackKeys = redisSimpleTrackTemplate.keys(REDIS_SIMPLE_TRACK + userInfo.getEmail() + REDIS_INDEX + "*");
             if (!simpleTrackKeys.isEmpty()) {
+                // 기본 정보 있는 거 하나 바꾸기
                 rabbitTemplate.convertAndSend(
-                        MQConstants.EMOTION_SEND_EXCHANGE,
-                        MQConstants.EMOTION_CACHE_TRACK_KEY,
+                        MQConstants.TRACK_EXCHANGE,
+                        MQConstants.TRACK_CACHING_KEY,
                         new RedisTrackIndexDto(userInfo.getEmail(), 0)
                 );
-                return TrackInfoDto.builder().index(-1).build(); // 다시 도는 것을 막기 위해 -1 리
+
+                // 3개씩 전파하는데도 실제 데이터가 없었다는 것은 GPT 신뢰도가 바닥이라는 것
+                return TrackInfoDto.builder().index(-1).build();
             }
 
+            // 모두 변환했기 때문에 정보가 없음을 전달
             return null;
         }
 
@@ -462,8 +463,8 @@ public class TrackService {
         if (!simpleTrackKeys.isEmpty()) {
             for (int i = 0; i < COUNT_PER_MQ; i++) {
                 rabbitTemplate.convertAndSend(
-                        MQConstants.EMOTION_SEND_EXCHANGE,
-                        MQConstants.EMOTION_CACHE_TRACK_KEY,
+                        MQConstants.TRACK_EXCHANGE,
+                        MQConstants.TRACK_CACHING_KEY,
                         new RedisTrackIndexDto(userInfo.getEmail(), i)
                 );
             }

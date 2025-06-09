@@ -1,4 +1,4 @@
-package com.anotation.anotation_be.auth.dto.response;
+package com.anotation.anotation_be.user.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;

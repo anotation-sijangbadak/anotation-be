@@ -1,6 +1,6 @@
-package com.anotation.anotation_be.auth.repo;
+package com.anotation.anotation_be.user.repo;
 
-import com.anotation.anotation_be.auth.entity.Users;
+import com.anotation.anotation_be.user.entity.Users;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

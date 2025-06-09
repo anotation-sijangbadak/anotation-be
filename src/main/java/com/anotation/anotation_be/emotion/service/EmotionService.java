@@ -1,8 +1,8 @@
 package com.anotation.anotation_be.emotion.service;
 
-import com.anotation.anotation_be.auth.entity.Users;
-import com.anotation.anotation_be.auth.repo.AuthRepository;
-import com.anotation.anotation_be.auth.service.AuthService;
+import com.anotation.anotation_be.common.constants.MQConstants;
+import com.anotation.anotation_be.user.entity.Users;
+import com.anotation.anotation_be.user.repo.AuthRepository;
 import com.anotation.anotation_be.common.constants.URIConstants;
 import com.anotation.anotation_be.common.dto.emotion.EmotionPredictDto;
 import com.anotation.anotation_be.common.dto.emotion.GPTEmotionReqDto;
@@ -18,16 +18,14 @@ import com.anotation.anotation_be.emotion.dto.response.UserEmotionResDto;
 import com.anotation.anotation_be.emotion.dto.request.UserPromptReqDto;
 import com.anotation.anotation_be.emotion.entity.Emotions;
 import com.anotation.anotation_be.emotion.entity.Traces;
-import com.anotation.anotation_be.emotion.repo.EmotionRepository;
 import com.anotation.anotation_be.emotion.repo.TraceRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +38,7 @@ public class EmotionService {
     private final RestClient restClient;
     private final AuthRepository authRepository;
     private final TraceRepository traceRepository;
-    private final EmotionRecommendPublisherService emotionRecommendPublisherService;
+    private final RabbitTemplate rabbitTemplate;
 
     @Value("${papago.api-key-id}")
     private String papagoApiKeyId;
@@ -90,7 +88,7 @@ public class EmotionService {
                 .build();
 
         // 감정 정보를 담아 메시징 큐에 쏘기
-        emotionRecommendPublisherService.sendEmotion(sendDto);
+        rabbitTemplate.convertAndSend(MQConstants.EMOTION_EXCHANGE, MQConstants.TRACK_RECOMMEND_KEY, sendDto);
 
         return UserEmotionResDto.builder()
                 .translatedText(translated)

@@ -1,12 +1,12 @@
-package com.anotation.anotation_be.auth.controller;
+package com.anotation.anotation_be.user.controller;
 
-import com.anotation.anotation_be.auth.dto.request.LoginRequestDto;
-import com.anotation.anotation_be.auth.dto.request.SignupReqDto;
-import com.anotation.anotation_be.auth.dto.request.UserModifyReqDto;
-import com.anotation.anotation_be.auth.dto.response.LoginResponseDto;
-import com.anotation.anotation_be.auth.dto.response.TokenReissueResDto;
-import com.anotation.anotation_be.auth.dto.response.UserIdResDto;
-import com.anotation.anotation_be.auth.service.AuthService;
+import com.anotation.anotation_be.user.dto.request.LoginRequestDto;
+import com.anotation.anotation_be.user.dto.request.SignupReqDto;
+import com.anotation.anotation_be.user.dto.request.UserModifyReqDto;
+import com.anotation.anotation_be.user.dto.response.LoginResponseDto;
+import com.anotation.anotation_be.user.dto.response.TokenReissueResDto;
+import com.anotation.anotation_be.user.dto.response.UserIdResDto;
+import com.anotation.anotation_be.user.service.AuthService;
 import com.anotation.anotation_be.common.dto.global.CommonResponse;
 import com.anotation.anotation_be.common.dto.global.TokenUserInfo;
 import com.anotation.anotation_be.common.enums.CommonStatus;

@@ -1,4 +1,4 @@
-package com.anotation.anotation_be.common.config;
+package com.anotation.anotation_be.common.mq;
 
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
