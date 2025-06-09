@@ -34,7 +34,6 @@ public class EmailConsumerService {
             emailService.sendEmail(reqDto);
         } catch (Exception e) {
             log.warn("MQ 메시지 처리에 실패했습니다.");
-            // TODO: DLQ(Dead Letter Queue) 설정 필요
         }
     }
 

@@ -53,7 +53,7 @@ public class TrackConsumerService {
             trackService.recommendMusicCaching(reqDto);
         } catch (Exception e) {
             log.warn("MQ 메시지 처리에 실패했습니다.");
-            // TODO: DLQ(Dead Letter Queue) 설정 필요
+            // TODO: DLQ(Dead Letter Queue) & DLX(Dead Letter Exchange) 설정 필요 -> 던지는 예외를 구분해야함.
         }
     }
 

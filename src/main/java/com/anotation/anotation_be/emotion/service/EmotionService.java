@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class EmotionService {
     private final RestClient restClient;
     private final AuthRepository authRepository;
@@ -45,14 +46,6 @@ public class EmotionService {
     private String papagoApiKeyId;
     @Value("${papago.api-key}")
     private String papagoApiKey;
-
-    public EmotionService(RestClient.Builder restClientBuilder, AuthRepository authRepository, EmotionRepository emotionRepository, TraceRepository traceRepository, EmotionRecommendPublisherService emotionRecommendPublisherService) {
-        this.restClient = restClientBuilder.build();
-        this.authRepository = authRepository;
-        this.traceRepository = traceRepository;
-        this.emotionRecommendPublisherService = emotionRecommendPublisherService;
-    }
-
 
     @Transactional
     public UserEmotionResDto getEmotion(TokenUserInfo userInfo, UserPromptReqDto reqDto) {
@@ -103,16 +96,13 @@ public class EmotionService {
                 .translatedText(translated)
                 .emotionList(emotionList.stream().map(EmotionEnum::getEmotion_kr).toList()).
                 build();
-
-        // TODO: 3. 이걸로 Spotify한테 잘 조립해서 쿼리를 날리자
-        // TODO: 4. 받은 트랙을 프론트로 보내자
     }
 
     private EmotionPredictDto getEmotionPredict(String translated) {
         EmotionPredictDto result;
         try {
             result = restClient.post()
-                    .uri("http://localhost:9000" + "/predict")
+                    .uri(URIConstants.EMOTION_MODEL_URI + "/predict")
                     .header("Content-Type", "application/json")
                     .body(new EmotionPredictReqDto(translated))
                     .retrieve()
@@ -129,7 +119,7 @@ public class EmotionService {
         return result;
     }
 
-    private static List<EmotionEnum> getEmotionEnums(List<EmotionPredictDto.Result> result) {
+    private List<EmotionEnum> getEmotionEnums(List<EmotionPredictDto.Result> result) {
         List<EmotionEnum> emotionList;
         try {
             emotionList = result.stream()
@@ -153,7 +143,7 @@ public class EmotionService {
         List<EmotionPredictDto.Result> result;
         try {
             result = restClient.post()
-                    .uri("http://localhost:9000" + "/predict")
+                    .uri(URIConstants.EMOTION_MODEL_URI + "/predict")
                     .header("Content-Type", "application/json")
                     .body(new EmotionPredictReqDto(translated))
                     .retrieve()
