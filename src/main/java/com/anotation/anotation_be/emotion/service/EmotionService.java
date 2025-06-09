@@ -83,8 +83,8 @@ public class EmotionService {
         GPTEmotionReqDto sendDto = GPTEmotionReqDto.builder()
                 .email(user.getEmail())
                 .userInput(translated)
-                .emotionList(emotionList.stream().map(e -> e.name().toLowerCase()).collect(Collectors.toList()))
-                .genreList(Genre.toGenre(user.getGenre().intValue()).stream().map(e -> e.name().toLowerCase()).collect(Collectors.toList()))
+                .emotionList(emotionList)
+                .genreList(Genre.toGenre(user.getGenre().intValue()))
                 .build();
 
         // 감정 정보를 담아 메시징 큐에 쏘기

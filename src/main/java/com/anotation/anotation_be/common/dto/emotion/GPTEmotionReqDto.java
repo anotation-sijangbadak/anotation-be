@@ -16,6 +16,6 @@ import java.util.List;
 public class GPTEmotionReqDto {
     private String email;
     private String userInput;
-    private List<String> emotionList;
-    private List<String> genreList;
+    private List<EmotionEnum> emotionList;
+    private List<Genre> genreList;
 }

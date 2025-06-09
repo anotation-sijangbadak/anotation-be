@@ -6,7 +6,9 @@ import com.anotation.anotation_be.common.constants.PromptConstants;
 import com.anotation.anotation_be.common.constants.URIConstants;
 import com.anotation.anotation_be.common.dto.emotion.GPTEmotionReqDto;
 import com.anotation.anotation_be.common.dto.global.TokenUserInfo;
+import com.anotation.anotation_be.common.enums.EmotionEnum;
 import com.anotation.anotation_be.common.enums.ErrorCode;
+import com.anotation.anotation_be.common.enums.Genre;
 import com.anotation.anotation_be.common.exception.BusinessException;
 import com.anotation.anotation_be.track.dto.RedisTrackIndexDto;
 import com.anotation.anotation_be.track.dto.SimpleTrackDto;
@@ -78,8 +80,6 @@ public class TrackService {
      * @return List{title, artist, reason}
      */
     public List<SimpleTrackDto> recommendMusicCaching(GPTEmotionReqDto reqDto) throws BusinessException, IllegalArgumentException, AmqpException {
-        // TODO: 장르 리스트, 감정 리스트는 Enum List로 받아야함. -> Track 저장 위함.
-
         String requestBody = getPrompt(reqDto); // 프롬프트 생성
         log.info("프롬프트 : {}", requestBody);
 
@@ -126,10 +126,10 @@ public class TrackService {
         int yearDuration = (int) (Math.random() * 5) + 10;
 
         // 감정 태그 리스트 문자열화
-        String emotionStr = getEmotionStr(reqDto);
+        String emotionStr = getEmotionStr(reqDto.getEmotionList());
 
         // 장르 리스트 문자열화
-        String genreStr = getGenreStr(reqDto);
+        String genreStr = getGenreStr(reqDto.getGenreList());
 
         // 장르 프롬프트
         String genrePrompt = ""; // TODO: switch case로 장르별로 프롬프트 세분화
@@ -145,13 +145,13 @@ public class TrackService {
     }
 
     /**
-     * 추후 개선할 함수입니다! (deprecated)
+     * 프롬프트에 들어갈 Genre Enum 값을 String으로 변환
+     * @param genreList Genre Enum List
      */
-    private String getGenreStr(GPTEmotionReqDto reqDto) {
+    private String getGenreStr(List<Genre> genreList) {
         StringBuilder sb = new StringBuilder();
-        List<String> genreList = reqDto.getGenreList();
-        for (String genre : genreList) {
-            sb.append(genre);
+        for (Genre genre : genreList) {
+            sb.append(genre.name().toLowerCase());
             sb.append(", ");
         }
         sb.delete(sb.length() - 2, sb.length());
@@ -159,13 +159,12 @@ public class TrackService {
     }
 
     /**
-     * 추후 개선할 함수입니다! (deprecated)
+     * 프롬프트에 들어갈 Emotion Enum 값을 String으로 변환
      */
-    private String getEmotionStr(GPTEmotionReqDto reqDto) {
+    private String getEmotionStr(List<EmotionEnum> emotionList) {
         StringBuilder sb = new StringBuilder();
-        List<String> emotionList = reqDto.getEmotionList();
         for (int i = 0; i < emotionList.size(); i++) {
-            String emotion = emotionList.get(i);
+            String emotion = emotionList.get(i).name().toLowerCase();
             sb.append(i + 1);
             sb.append(". ");
             sb.append(emotion);
@@ -239,9 +238,9 @@ public class TrackService {
      * 4. Spotify API에서 실제 트랙 정보 응답
      * 5. Redis에 실제 트랙 정보 저장
      * </pre>
-     * @param reqDto title, artist, reason
+     * @param reqDto email, index
      */
-    public void recommendTrackInfoCaching(RedisTrackIndexDto reqDto) throws BusinessException, Exception {
+    public void recommendTrackInfoCaching(RedisTrackIndexDto reqDto) throws BusinessException {
         // index 값에 따라 시간 지연 발생시키기 (Too many request 방지)
         if (reqDto.getIndex() > 0) {
             try {
@@ -360,8 +359,8 @@ public class TrackService {
     private String getTracksQueryFromSpotify(SimpleTrackDto trackDto, String spotifyAccessToken, boolean isAlternative) {
         // 검색을 위한 쿼리 생성
         String searchParam;
-        if (isAlternative) searchParam = "artist:" + trackDto.getArtist() + " " + trackDto.getTitle(); // 대체 쿼리라면 track 키워드 삭제
-        else searchParam = "artist:" + trackDto.getArtist() + " track:" + trackDto.getTitle(); // 아니라면 정상 쿼리 작성
+        if (isAlternative) searchParam = "artist:" + trackDto.getArtist().trim() + " " + trackDto.getTitle(); // 대체 쿼리라면 track 키워드 삭제
+        else searchParam = "artist:" + trackDto.getArtist().trim() + " track:" + trackDto.getTitle(); // 아니라면 정상 쿼리 작성
 
         // 조건을 작성한 URI 변환
         String searchUri = UriComponentsBuilder.fromUriString(URIConstants.SPOTIFY_URI)
@@ -419,7 +418,6 @@ public class TrackService {
                     .releaseDate(firstItem.path("album").path("release_date").asText())
                     .build();
 
-            log.info(trackInfoDto.toString());
         } catch (Exception e) {
             log.error("Spotify API로 부터 받은 응답 데이터를 JSON 파싱하는 과정에서 오류가 발생했습니다.");
             return null;
