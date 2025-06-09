@@ -53,12 +53,4 @@ public class RabbitMqBindingConfig {
                 .to(emotionExchange())
                 .with(MQConstants.EMOTION_CACHE_TRACK_KEY);
     }
-
-    @Bean
-    public Binding fakeCachingBinding() {
-        return BindingBuilder
-                .bind(emotionQueue())
-                .to(emotionExchange())
-                .with(MQConstants.EMOTION_CACHE_TRACK_FAKE_KEY);
-    }
 }

@@ -30,23 +30,8 @@ public class TrackConsumerService {
             case "recommend.track.cache" :
                 cacheTrackInfo(message.getBody());
                 break;
-//            case "recommend.track.fake.cache" :
-//                cacheAlternativeTrackInfo(message.getBody());
-//                break;
         }
     }
-
-//    private void cacheAlternativeTrackInfo(byte[] body) {
-//        try {
-//            log.info("MQ 트랙 정보 캐싱 메시지 수신!");
-//
-//            RedisTrackIndexDto reqDto = objectMapper.readValue(body, RedisTrackIndexDto.class);
-//            trackService.recommendTrackInfoCaching(reqDto);
-//        } catch (Exception e) {
-//            log.warn("MQ 메시지 처리에 실패했습니다.");
-//            // TODO: DLQ(Dead Letter Queue) 설정 필요
-//        }
-//    }
 
     private void cacheTrackInfo(byte[] body) {
         try {
@@ -68,7 +53,7 @@ public class TrackConsumerService {
             trackService.recommendMusicCaching(reqDto);
         } catch (Exception e) {
             log.warn("MQ 메시지 처리에 실패했습니다.");
-            // TODO: DLQ(Dead Letter Queue) 설정 필요
+            // TODO: DLQ(Dead Letter Queue) & DLX(Dead Letter Exchange) 설정 필요 -> 던지는 예외를 구분해야함.
         }
     }
 
