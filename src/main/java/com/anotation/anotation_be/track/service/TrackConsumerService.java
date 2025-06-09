@@ -19,17 +19,28 @@ public class TrackConsumerService {
     private final TrackService trackService;
     private final ObjectMapper objectMapper;
 
-    @RabbitListener(queues = "track.recommend.queue")
+    @RabbitListener(queues = "track.queue")
     public void handleRecommendMessage(Message message) {
         String routingKey = message.getMessageProperties().getReceivedRoutingKey();
 
         switch (routingKey) {
-            case "recommend.emotion.send" :
-                recommendMusic(message.getBody());
+            case "emotion.track.recommend" :
+                recommendMusicCaching(message.getBody());
                 break;
-            case "recommend.track.cache" :
+            case "track.track.caching" :
                 cacheTrackInfo(message.getBody());
                 break;
+        }
+    }
+
+    private void recommendMusicCaching(byte[] body) {
+        try {
+            log.info("MQ 음악 추천 메시지 수신!");
+
+            GPTEmotionReqDto reqDto = objectMapper.readValue(body, GPTEmotionReqDto.class);
+            trackService.recommendMusicCaching(reqDto);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
         }
     }
 
@@ -40,22 +51,7 @@ public class TrackConsumerService {
             RedisTrackIndexDto reqDto = objectMapper.readValue(body, RedisTrackIndexDto.class);
             trackService.recommendTrackInfoCaching(reqDto);
         } catch (Exception e) {
-            log.warn("MQ 메시지 처리에 실패했습니다.");
-            // TODO: DLQ(Dead Letter Queue) 설정 필요
+            log.error(e.getMessage(), e);
         }
     }
-
-    private void recommendMusic(byte[] body) {
-        try {
-            log.info("MQ 음악 추천 메시지 수신!");
-
-            GPTEmotionReqDto reqDto = objectMapper.readValue(body, GPTEmotionReqDto.class);
-            trackService.recommendMusicCaching(reqDto);
-        } catch (Exception e) {
-            log.warn("MQ 메시지 처리에 실패했습니다.");
-            // TODO: DLQ(Dead Letter Queue) & DLX(Dead Letter Exchange) 설정 필요 -> 던지는 예외를 구분해야함.
-        }
-    }
-
-
 }

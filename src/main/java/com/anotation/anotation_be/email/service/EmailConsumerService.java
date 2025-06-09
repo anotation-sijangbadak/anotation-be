@@ -15,12 +15,12 @@ public class EmailConsumerService {
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
 
-    @RabbitListener(queues = "email.user.queue")
+    @RabbitListener(queues = "email.queue")
     public void handleEmailMessage(Message message) {
         String routingKey = message.getMessageProperties().getReceivedRoutingKey();
 
         switch (routingKey) {
-            case "user.signup" :
+            case "user.email.signup" :
                 sendMessage(message.getBody());
                 break;
         }

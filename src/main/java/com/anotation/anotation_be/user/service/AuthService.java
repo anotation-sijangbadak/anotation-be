@@ -1,12 +1,13 @@
-package com.anotation.anotation_be.auth.service;
+package com.anotation.anotation_be.user.service;
 
-import com.anotation.anotation_be.auth.dto.request.LoginRequestDto;
-import com.anotation.anotation_be.auth.dto.request.SignupReqDto;
-import com.anotation.anotation_be.auth.dto.request.UserModifyReqDto;
-import com.anotation.anotation_be.auth.dto.response.LoginResponseDto;
-import com.anotation.anotation_be.auth.dto.response.UserIdResDto;
-import com.anotation.anotation_be.auth.entity.Users;
-import com.anotation.anotation_be.auth.repo.AuthRepository;
+import com.anotation.anotation_be.common.constants.MQConstants;
+import com.anotation.anotation_be.user.dto.request.LoginRequestDto;
+import com.anotation.anotation_be.user.dto.request.SignupReqDto;
+import com.anotation.anotation_be.user.dto.request.UserModifyReqDto;
+import com.anotation.anotation_be.user.dto.response.LoginResponseDto;
+import com.anotation.anotation_be.user.dto.response.UserIdResDto;
+import com.anotation.anotation_be.user.entity.Users;
+import com.anotation.anotation_be.user.repo.AuthRepository;
 import com.anotation.anotation_be.common.dto.email.EmailReqDto;
 import com.anotation.anotation_be.common.dto.global.TokenUserInfo;
 import com.anotation.anotation_be.common.enums.ErrorCode;
@@ -16,8 +17,8 @@ import com.anotation.anotation_be.common.jwt.JwtTokenProvider;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -28,8 +29,8 @@ public class AuthService {
     private final AuthRepository authRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-    private final EmailPublisherService emailPublisherService;
     private final RefreshTokenService refreshTokenService;
+    private final RabbitTemplate rabbitTemplate;
 
     @Value("${jwt.refresh-token-expiration}")
     private Long refreshTokenExpiration;
@@ -75,7 +76,8 @@ public class AuthService {
                 .body("<h1>회원가입 대성공<h1>")
                 .build();
 
-        emailPublisherService.sendEmail(emailReqDto);
+
+        rabbitTemplate.convertAndSend(MQConstants.USER_EXCHANGE, MQConstants.SIGNUP_KEY, reqDto);
 
         return new UserIdResDto(user.getId());
     }

@@ -1,4 +1,4 @@
-package com.anotation.anotation_be.auth.service;
+package com.anotation.anotation_be.user.service;
 
 import com.anotation.anotation_be.common.enums.ErrorCode;
 import com.anotation.anotation_be.common.exception.BusinessException;

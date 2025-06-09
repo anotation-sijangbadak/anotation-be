@@ -1,6 +1,6 @@
 package com.anotation.anotation_be.emotion.entity;
 
-import com.anotation.anotation_be.auth.entity.Users;
+import com.anotation.anotation_be.user.entity.Users;
 import com.anotation.anotation_be.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

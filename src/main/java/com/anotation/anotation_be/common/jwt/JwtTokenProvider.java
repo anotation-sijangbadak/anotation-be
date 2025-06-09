@@ -1,6 +1,6 @@
 package com.anotation.anotation_be.common.jwt;
 
-import com.anotation.anotation_be.auth.entity.Users;
+import com.anotation.anotation_be.user.entity.Users;
 import com.anotation.anotation_be.common.enums.ErrorCode;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
