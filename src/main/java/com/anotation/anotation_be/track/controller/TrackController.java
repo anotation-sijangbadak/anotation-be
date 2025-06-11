@@ -37,7 +37,7 @@ public class TrackController {
             return new ResponseEntity<>(CommonResponse.ok(CommonStatus.EMPTY), HttpStatus.OK);
         } else {
             if(resDto.getIndex() == -1) {
-                return new ResponseEntity<>(CommonResponse.fail(ErrorCode.INTERNAL_ERROR, "GPT 신뢰도에 문제 발생. 강하늘에게 문의하세요."), HttpStatus.INTERNAL_SERVER_ERROR);
+                return new ResponseEntity<>(CommonResponse.fail(ErrorCode.INTERNAL_ERROR, "GPT 신뢰도에 문제 발생. 강하늘에게 문의하세요. 다시 요청하면 될지도."), HttpStatus.INTERNAL_SERVER_ERROR);
             }
             return new ResponseEntity<>(CommonResponse.ok(CommonStatus.SUCCESS, resDto), HttpStatus.OK);
         }

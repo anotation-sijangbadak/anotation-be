@@ -24,6 +24,7 @@ import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -140,12 +141,12 @@ public class TrackService {
                 .replace("\n", "\\n");
 
 
-
         return PromptConstants.PROMPT_CONFIG.formatted(prompt);
     }
 
     /**
      * 프롬프트에 들어갈 Genre Enum 값을 String으로 변환
+     *
      * @param genreList Genre Enum List
      */
     private String getGenreStr(List<Genre> genreList) {
@@ -176,32 +177,37 @@ public class TrackService {
 
     /**
      * GPT에게 생성한 프롬프트로 음악 추천 요청 전달
+     *
      * @param requestBody 요청 바디
      * @return 응답 바디 (String)
-     * @exception BusinessException GPT 응답 오류
+     * @throws BusinessException GPT 응답 오류
      */
     private String getResponseByGPT(String requestBody) throws BusinessException {
         String response;
-        try {
-            response = restClient.post()
-                    .uri(URIConstants.GPT_URI)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .header("Authorization", "Bearer " + gptToken)
-                    .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
-                    .body(requestBody)
-                    .retrieve()
-                    .body(String.class);
-        } catch (Exception e) {
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "GPT API에서 응답을 받는 도중 오류가 발생했습니다.");
-        }
+        response = restClient.post()
+                .uri(URIConstants.GPT_URI)
+                .accept(MediaType.APPLICATION_JSON)
+                .header("Authorization", "Bearer " + gptToken)
+                .header("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                .body(requestBody)
+                .retrieve()
+                .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    throw new BusinessException(ErrorCode.EXTERNAL_API_REQUEST_ERROR);
+                })
+                .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
+                    throw new BusinessException(ErrorCode.EXTERNAL_API_SERVER_ERROR);
+                })
+                .body(String.class);
+
         return response;
     }
 
     /**
      * GPT 응답 데이터 DTO 변환
+     *
      * @param response GPT 응답 바디(String)
      * @return List {title, artist, reason}
-     * @exception BusinessException JSON 파싱 오류
+     * @throws BusinessException JSON 파싱 오류
      */
     private List<SimpleTrackDto> getSimpleTrackList(String response) throws BusinessException {
         List<SimpleTrackDto> recommendTracks;
@@ -229,6 +235,7 @@ public class TrackService {
     }
     //endregion
     //region 추천 음악 실제 정보 Redis 저장 로직
+
     /**
      * <pre>
      * MQ 메세지 처리 로직
@@ -238,6 +245,7 @@ public class TrackService {
      * 4. Spotify API에서 실제 트랙 정보 응답
      * 5. Redis에 실제 트랙 정보 저장
      * </pre>
+     *
      * @param reqDto email, index
      */
     public void recommendTrackInfoCaching(RedisTrackIndexDto reqDto) throws BusinessException {
@@ -259,7 +267,6 @@ public class TrackService {
         }
 
         log.info("---------------------------- 스포티파이에 곡 검증 시작 ------------------------------");
-        // TODO: Too many requests 처리 로직 구현 필요함
 
         // Access Token이 있는 지 확인
         String spotifyAccessToken;
@@ -309,6 +316,7 @@ public class TrackService {
 
     /**
      * Spotify API에 접근하기 위한 Access Token을 발급받는 로직
+     *
      * @return Access Token
      */
     private String getSpotifyAccessToken() throws BusinessException {
@@ -331,10 +339,17 @@ public class TrackService {
                     .accept(MediaType.APPLICATION_JSON)
                     .body(requestBody)
                     .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                        throw new BusinessException(ErrorCode.EXTERNAL_API_REQUEST_ERROR);
+                    })
+                    .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
+                        throw new BusinessException(ErrorCode.EXTERNAL_API_SERVER_ERROR);
+                    })
                     .body(SpotifyAccessTokenDto.class);
+
         } catch (Exception e) {
             log.error("Spotify API로 부터 Access Token을 전달받는 과정에서 문제가 발생했습니다.");
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR,"토큰을 발급받지 못했습니다. 잠시 후 다시 시도해주세요.");
+            throw e;
         }
 
         if (response != null) {
@@ -345,21 +360,23 @@ public class TrackService {
             return response.getAccessToken();
         } else {
             log.error("요청은 정상적으로 처리되었으나, 응답으로 null이 수신됨.");
-            throw new BusinessException(ErrorCode.INTERNAL_ERROR,"토큰을 발급받지 못했습니다. 잠시 후 다시 시도해주세요.");
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "토큰을 발급받지 못했습니다. 잠시 후 다시 시도해주세요.");
         }
     }
 
     /**
      * 기본 트랙 정보를 바탕으로 실제 트랙의 정보를 받아오는 로직
-     * @param trackDto title, artist, reason
+     *
+     * @param trackDto           title, artist, reason
      * @param spotifyAccessToken Spotify API에 접근하기 위한 Access Token
-     * @param isAlternative true : 대체 트랙 찾기 / false : 기본 정보와 일치하는 트랙 찾기
+     * @param isAlternative      true : 대체 트랙 찾기 / false : 기본 정보와 일치하는 트랙 찾기
      * @return 응답 바디 (String)
      */
     private String getTracksQueryFromSpotify(SimpleTrackDto trackDto, String spotifyAccessToken, boolean isAlternative) {
         // 검색을 위한 쿼리 생성
         String searchParam;
-        if (isAlternative) searchParam = "artist:" + trackDto.getArtist().trim() + " " + trackDto.getTitle(); // 대체 쿼리라면 track 키워드 삭제
+        if (isAlternative)
+            searchParam = "artist:" + trackDto.getArtist().trim() + " " + trackDto.getTitle(); // 대체 쿼리라면 track 키워드 삭제
         else searchParam = "artist:" + trackDto.getArtist().trim() + " track:" + trackDto.getTitle(); // 아니라면 정상 쿼리 작성
 
         // 조건을 작성한 URI 변환
@@ -380,10 +397,16 @@ public class TrackService {
                     .header("Authorization", "Bearer " + spotifyAccessToken)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
+                    .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                        throw new BusinessException(ErrorCode.EXTERNAL_API_REQUEST_ERROR);
+                    })
+                    .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
+                        throw new BusinessException(ErrorCode.EXTERNAL_API_SERVER_ERROR);
+                    })
                     .body(String.class);
         } catch (Exception e) {
             log.warn("Spotify에서 트랙 정보를 얻어오지 못했습니다.");
-            return null;
+            throw e;
         }
 
         log.info("결과 쿼리: {}", searchResult);
@@ -392,6 +415,7 @@ public class TrackService {
 
     /**
      * Spotify에게 받은 응답 바디(String)를 Track Info Dto로 변환
+     *
      * @param resultTracks 응답 바디(String)
      * @return TrackInfoDto
      */
