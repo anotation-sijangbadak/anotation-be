@@ -39,9 +39,9 @@ public class Tracks {
 
     @Column(nullable = false)
     private String releaseDate;
-
-    @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
-    @ColumnDefault("'NEUTRAL'")
-    private EmotionEnum emotion;
+//
+//    @Column(nullable = false)
+//    @Enumerated(EnumType.STRING)
+//    @ColumnDefault("'NEUTRAL'")
+//    private EmotionEnum emotion;
 }

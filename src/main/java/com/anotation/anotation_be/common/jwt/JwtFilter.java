@@ -30,7 +30,7 @@ public class JwtFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
 
     List<String> whiteList = List.of(
-            "/auth/signup", "/auth/login", "/swagger-ui/", "/v3/"
+            "/auth/signup", "/auth/login", "/swagger-ui", "/v3/"
     );
 
     @Override

@@ -29,6 +29,6 @@
 ## 기타 사항
 ### SWAGGER 사용법
 1) 로컬에서 서버를 돌린다. 
-1) localhost:8000/swagger-ui로 접속한다.
+1) http://localhost:8000/swagger-ui/index.html 로 접속한다.
 1) API 스펙을 확인하고 테스트
 
