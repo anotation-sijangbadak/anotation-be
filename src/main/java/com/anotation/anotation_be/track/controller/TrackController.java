@@ -43,10 +43,6 @@ public class TrackController {
         }
     }
 
-    @PostMapping("/selectTrack/{index}")
-    public ResponseEntity<?> selectTrack(@PathVariable int index){
-        // 스냅 생성
-        return null;
-    }
+
 
 }

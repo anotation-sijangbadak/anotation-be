@@ -14,6 +14,10 @@ import com.anotation.anotation_be.track.dto.RedisTrackIndexDto;
 import com.anotation.anotation_be.track.dto.SimpleTrackDto;
 import com.anotation.anotation_be.track.dto.SpotifyAccessTokenDto;
 import com.anotation.anotation_be.track.dto.TrackInfoDto;
+import com.anotation.anotation_be.track.entity.Tracks;
+import com.anotation.anotation_be.track.repo.TrackRepository;
+import com.anotation.anotation_be.user.entity.Users;
+import com.anotation.anotation_be.user.repo.AuthRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -46,6 +50,8 @@ public class TrackService {
     private final RedisTemplate<String, SimpleTrackDto> redisSimpleTrackTemplate;
     private final RedisTemplate<String, String> redisStringTemplate;
     private final RedisTemplate<String, TrackInfoDto> redisTrackInfoTemplate;
+    private final TrackRepository trackRepository;
+    private final AuthRepository authRepository;
     //endregion
     //region Constants
     private static final String REDIS_SPOTIFY = "SPOTIFY:ACCESS:TOKEN";
@@ -192,10 +198,10 @@ public class TrackService {
                 .body(requestBody)
                 .retrieve()
                 .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                    throw new BusinessException(ErrorCode.EXTERNAL_API_REQUEST_ERROR);
+                    throw new BusinessException(ErrorCode.EXTERNAL_API_REQUEST_ERROR, "에러 응답 코드 : " + res.getStatusCode());
                 })
                 .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-                    throw new BusinessException(ErrorCode.EXTERNAL_API_SERVER_ERROR);
+                    throw new BusinessException(ErrorCode.EXTERNAL_API_SERVER_ERROR, "에러 응답 코드 : " + res.getStatusCode());
                 })
                 .body(String.class);
 
@@ -306,6 +312,22 @@ public class TrackService {
         }
         // -------------------------------------------------------------------------------------
 
+        // Track DB에 존재하지 않는 곡이었다면 저장
+        boolean present = trackRepository.findBySpotifyId(trackInfoDto.getSpotifyId()).isPresent();
+        if (!present) {
+            Tracks track = Tracks.builder()
+                    .album(trackInfoDto.getAlbum())
+                    .artist(trackInfoDto.getArtist())
+                    .title(trackInfoDto.getTitle())
+                    .releaseDate(trackInfoDto.getReleaseDate())
+                    .thumbnail(trackInfoDto.getThumbnail())
+                    .popularity(trackInfoDto.getPopularity())
+                    .spotifyId(trackInfoDto.getSpotifyId())
+                    .build();
+
+            trackRepository.save(track);
+        }
+
         // 랜덤 인덱스 생성
         int randomIndex = (int) (Math.random() * Constants.REDIS_INDEX_RANGE - 1) + Constants.REDIS_INDEX_RANGE + 1;
         trackInfoDto.setIndex(randomIndex);
@@ -340,10 +362,10 @@ public class TrackService {
                     .body(requestBody)
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                        throw new BusinessException(ErrorCode.EXTERNAL_API_REQUEST_ERROR);
+                        throw new BusinessException(ErrorCode.EXTERNAL_API_REQUEST_ERROR, "에러 응답 코드 : " + res.getStatusCode());
                     })
                     .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-                        throw new BusinessException(ErrorCode.EXTERNAL_API_SERVER_ERROR);
+                        throw new BusinessException(ErrorCode.EXTERNAL_API_SERVER_ERROR, "에러 응답 코드 : " + res.getStatusCode());
                     })
                     .body(SpotifyAccessTokenDto.class);
 
@@ -398,10 +420,10 @@ public class TrackService {
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                        throw new BusinessException(ErrorCode.EXTERNAL_API_REQUEST_ERROR);
+                        throw new BusinessException(ErrorCode.EXTERNAL_API_REQUEST_ERROR, "에러 응답 코드 : " + res.getStatusCode());
                     })
                     .onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-                        throw new BusinessException(ErrorCode.EXTERNAL_API_SERVER_ERROR);
+                        throw new BusinessException(ErrorCode.EXTERNAL_API_SERVER_ERROR, "에러 응답 코드 : " + res.getStatusCode());
                     })
                     .body(String.class);
         } catch (Exception e) {
@@ -477,8 +499,12 @@ public class TrackService {
         String key = keys.iterator().next();
         TrackInfoDto resDto = redisTrackInfoTemplate.opsForValue().get(key);
 
-        // 나중에 스냅으로 저장하기 위한 뭔가 뭔가가 필요함.
-        redisTrackInfoTemplate.delete(key);
+        if (resDto == null) {
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR, "Redis에서 받아온 정보가 비어있습니다.");
+        }
+
+        // 다시 조회되지 않도록 키 이름 변경
+        redisTrackInfoTemplate.rename(key, "SEND:INFO:" + userInfo.getEmail() + REDIS_INDEX + resDto.getIndex());
 
         // 다음으로 계속
         Set<String> simpleTrackKeys = redisSimpleTrackTemplate.keys(REDIS_SIMPLE_TRACK + userInfo.getEmail() + REDIS_INDEX + "*");
@@ -494,5 +520,6 @@ public class TrackService {
 
         return resDto;
     }
+
 
 }
