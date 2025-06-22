@@ -1,4 +1,4 @@
-package com.anotation.anotation_be.track.dto;
+package com.anotation.anotation_be.common.dto.track;
 
 import lombok.*;
 

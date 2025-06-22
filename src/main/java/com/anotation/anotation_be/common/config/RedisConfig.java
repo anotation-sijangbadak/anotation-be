@@ -1,7 +1,7 @@
 package com.anotation.anotation_be.common.config;
 
 import com.anotation.anotation_be.track.dto.SimpleTrackDto;
-import com.anotation.anotation_be.track.dto.TrackInfoDto;
+import com.anotation.anotation_be.common.dto.track.TrackInfoDto;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;

@@ -6,7 +6,8 @@ import com.anotation.anotation_be.common.dto.global.TokenUserInfo;
 import com.anotation.anotation_be.common.enums.CommonStatus;
 import com.anotation.anotation_be.common.enums.ErrorCode;
 import com.anotation.anotation_be.track.dto.SimpleTrackDto;
-import com.anotation.anotation_be.track.dto.TrackInfoDto;
+import com.anotation.anotation_be.common.dto.track.TrackInfoDto;
+import com.anotation.anotation_be.track.service.TrackGptService;
 import com.anotation.anotation_be.track.service.TrackService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,12 +24,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TrackController {
     private final TrackService trackService;
-
-    @PostMapping("/test")
-    public ResponseEntity<?> test(@RequestBody GPTEmotionReqDto reqDto){
-        List<SimpleTrackDto> resDto = trackService.recommendMusicCaching(reqDto);
-        return new ResponseEntity<>(CommonResponse.ok(CommonStatus.SUCCESS, resDto), HttpStatus.OK);
-    }
+//    private final TrackGptService trackGptService;
+//
+//    @PostMapping("/test")
+//    public ResponseEntity<?> test(@RequestBody GPTEmotionReqDto reqDto){
+//        List<SimpleTrackDto> resDto = trackGptService.recommendMusicCaching(reqDto);
+//        return new ResponseEntity<>(CommonResponse.ok(CommonStatus.SUCCESS, resDto), HttpStatus.OK);
+//    }
 
     @GetMapping("/getTrack")
     public ResponseEntity<?> getTrack(@AuthenticationPrincipal TokenUserInfo userInfo){

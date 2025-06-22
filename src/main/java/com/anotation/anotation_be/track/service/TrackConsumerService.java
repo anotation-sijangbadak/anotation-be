@@ -1,10 +1,7 @@
 package com.anotation.anotation_be.track.service;
 
-import com.anotation.anotation_be.common.dto.email.EmailReqDto;
-import com.anotation.anotation_be.common.dto.emotion.EmotionPredictDto;
 import com.anotation.anotation_be.common.dto.emotion.GPTEmotionReqDto;
 import com.anotation.anotation_be.common.exception.BusinessException;
-import com.anotation.anotation_be.email.service.EmailService;
 import com.anotation.anotation_be.track.dto.RedisTrackIndexDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +16,8 @@ import java.io.IOException;
 @Slf4j
 @RequiredArgsConstructor
 public class TrackConsumerService {
-    private final TrackService trackService;
+    private final TrackGptService trackGptService;
+    private final TrackSpotifyService trackSpotifyService;
     private final ObjectMapper objectMapper;
 
     @RabbitListener(queues = "track.queue")
@@ -41,7 +39,7 @@ public class TrackConsumerService {
             log.info("MQ 음악 추천 메시지 수신!");
 
             GPTEmotionReqDto reqDto = objectMapper.readValue(body, GPTEmotionReqDto.class);
-            trackService.recommendMusicCaching(reqDto);
+            trackGptService.recommendMusicCaching(reqDto);
         } catch (Exception e) {
             log.error(e.getMessage());
         }
@@ -59,14 +57,14 @@ public class TrackConsumerService {
         try {
             log.info("MQ 트랙 정보 캐싱 메시지 수신!");
 
-            trackService.recommendTrackInfoCaching(reqDto);
+            trackSpotifyService.recommendTrackInfoCaching(reqDto);
         } catch (BusinessException e) {
             log.error(e.getMessage());
             if(e.getErrorCode().getStatus() == 503) {
                 // 4XX 에러 발생
                 Thread.sleep(1000);
                 // TODO 이거 계속 처리해줘야 하지 않을까..?
-                trackService.recommendTrackInfoCaching(reqDto);
+                trackSpotifyService.recommendTrackInfoCaching(reqDto);
             }
         }
     }
